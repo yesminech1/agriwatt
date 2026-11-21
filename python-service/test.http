@@ -21,3 +21,8 @@ Content-Type: application/json
   {"timestamp":"2026-07-10T11:00","powerKw":1.1},
   {"timestamp":"2026-07-10T12:00","powerKw":4.9}
 ]}
+### 6. Démo : canicule + coupure forcée 14h-19h (attendu : outageRisk = 1.0 de 14h à 18h)
+GET http://localhost:8000/forecast?lat=33.92&lon=8.13&crop=olive&areaM2=20000&panelAreaM2=24&scenario=canicule&forceOutageStart=14&forceOutageEnd=19
+
+### 7. Heure de coupure invalide (attendu : 422)
+GET http://localhost:8000/forecast?forceOutageStart=30

@@ -1,20 +1,24 @@
 """AgriWatt - Service Python (Personne A).
 
-Etape 1 : squelette avec données FACTICES qui respectent exactement le contrat
-d'interface (section 4). Les vraies fonctions (météo, PV, eau, coupure, IA)
-remplaceront les générateurs factices aux étapes suivantes, sans changer le format.
+Etape 6 : /forecast branché sur les vraies fonctions (weather, pv, water, outage).
+/anomalies : encore une détection provisoire (Isolation Forest à l'étape 8).
+Le format des réponses respecte exactement le contrat d'interface (section 4).
 """
 from datetime import datetime, timedelta
-import math
 import random
 import statistics
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-app = FastAPI(title="AgriWatt - Service Python", version="0.1.0")
+from outage import outage_risk
+from pv import pv_kw
+from water import water_need_m3
+from weather import get_weather
+
+app = FastAPI(title="AgriWatt - Service Python", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,9 +26,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-KC = {"olive": 0.65, "datte": 0.95, "tomate": 1.05, "ble": 1.15}  # hypothèses, à vérifier FAO-56
-
 
 # ---------- Modèles (contrat) ----------
 class HourForecast(BaseModel):
@@ -77,24 +78,23 @@ def forecast(
     panelAreaM2: float = 24,
     panelEfficiency: float = 0.18,
     days: int = Query(2, ge=1, le=7),
+    scenario: Optional[Literal["canicule"]] = None,
+    forceOutageStart: Optional[int] = Query(None, ge=0, le=23),
+    forceOutageEnd: Optional[int] = Query(None, ge=1, le=24),
 ):
-    """FACTICE : canicule type Tozeur (courbe solaire en cloche, 44 °C l'après-midi)."""
-    start = datetime.now().replace(minute=0, second=0, microsecond=0, hour=0)
-    kc = KC[crop]
+    """Prévision horaire réelle : météo (Open-Meteo / cache / scénario) + solaire + eau + risque."""
+    df = get_weather(lat, lon, days=days, scenario=scenario)
     hours = []
-    for i in range(24 * days):
-        t = start + timedelta(hours=i)
-        h = t.hour
-        sun = max(0.0, math.sin(math.pi * (h - 6) / 14)) if 6 <= h <= 20 else 0.0
-        irr = round(950 * sun, 1)
-        temp = round(30 + 14 * max(0.0, math.sin(math.pi * (h - 8) / 16)), 1) if 8 <= h <= 24 else 30.0
-        et0 = round(0.75 * sun, 3)  # ~7 mm/j au total
-        pv = round(irr * panelAreaM2 * panelEfficiency * 0.8 / 1000, 3)
-        risk = 0.1 + (0.4 if 13 <= h < 17 or 19 <= h < 22 else 0) + (0.35 if temp > 38 else 0)
-        water = round(et0 * kc * areaM2 / 1000 / 0.9, 3)
+    for row in df.itertuples(index=False):
+        h = int(str(row.hour)[11:13])
         hours.append(HourForecast(
-            hour=t.strftime("%Y-%m-%dT%H:%M"), tempC=temp, irradianceWm2=irr, et0Mm=et0,
-            pvKw=pv, outageRisk=round(min(risk, 1.0), 2), waterNeedM3=water,
+            hour=str(row.hour),
+            tempC=round(float(row.tempC), 1),
+            irradianceWm2=round(float(row.irradianceWm2), 1),
+            et0Mm=round(float(row.et0Mm), 3),
+            pvKw=round(pv_kw(float(row.irradianceWm2), panelAreaM2, panelEfficiency), 3),
+            outageRisk=outage_risk(float(row.tempC), h, forceOutageStart, forceOutageEnd),
+            waterNeedM3=round(water_need_m3(float(row.et0Mm), crop, areaM2), 3),
         ))
     return ForecastResponse(hours=hours)
 
