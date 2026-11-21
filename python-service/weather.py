@@ -1,12 +1,12 @@
-"""AgriWatt - Etape 2 : météo réelle (Open-Meteo) avec cache CSV et scénario canicule.
+"""AgriWatt - Etape 2 (+ fiabilité étape 9) : météo Open-Meteo, cache CSV et scénarios de démo.
 
 Fonction principale : get_weather(lat, lon, days=2, scenario=None) -> DataFrame
 Colonnes : hour, tempC, irradianceWm2, et0Mm, precipMm
 Ordre de priorité :
-  1. scenario="canicule"  -> cache/scenario_canicule.csv (démo)
+  1. scenario ("normal", "canicule", "nuageux") -> données simulées (démo, tests)
   2. Open-Meteo (internet) -> résultat sauvegardé dans cache/weather_<lat>_<lon>.csv
-  3. Pas d'internet       -> lecture du cache de ce lieu
-  4. Pas de cache non plus -> scénario canicule (la démo ne plante jamais)
+  3. Pas d'internet ou réponse invalide -> lecture du cache de ce lieu
+  4. Pas de cache (ou cache illisible)  -> scénario canicule (la démo ne plante jamais)
 La source utilisée est indiquée dans df.attrs["source"] ("api", "cache" ou "scenario").
 """
 from datetime import datetime, timedelta
@@ -21,9 +21,20 @@ SCENARIO_FILE = CACHE_DIR / "scenario_canicule.csv"
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 COLUMNS = ["hour", "tempC", "irradianceWm2", "et0Mm", "precipMm"]
 
+# Paramètres des scénarios : temp min/max (°C), irradiance max (W/m2), ET0 max horaire (mm), pluie (mm/h)
+SCENARIOS = {
+    "normal":   {"tmin": 26, "tmax": 36, "irr": 900, "et0": 0.70, "rain": 0.0},
+    "canicule": {"tmin": 30, "tmax": 44, "irr": 950, "et0": 0.85, "rain": 0.0},
+    "nuageux":  {"tmin": 22, "tmax": 29, "irr": 320, "et0": 0.30, "rain": 0.2},
+}
+
 
 def _cache_file(lat: float, lon: float) -> Path:
     return CACHE_DIR / f"weather_{lat:.2f}_{lon:.2f}.csv"
+
+
+def _today() -> datetime:
+    return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def fetch_open_meteo(lat: float, lon: float, days: int = 2) -> pd.DataFrame:
@@ -45,47 +56,58 @@ def fetch_open_meteo(lat: float, lon: float, days: int = 2) -> pd.DataFrame:
         "et0Mm": h["et0_fao_evapotranspiration"],
         "precipMm": h["precipitation"],
     })
+    if len(df) < 24 * days:
+        raise ValueError(f"Réponse incomplète : {len(df)} heures")
     return df.fillna(0.0)
 
 
-def make_scenario_canicule(days: int = 2, start: datetime | None = None) -> pd.DataFrame:
-    """Canicule simulée à Tozeur : 44 °C l'après-midi, ciel clair (~950 W/m2), pas de pluie."""
-    if start is None:
-        start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+def make_scenario(kind: str = "canicule", days: int = 2, start: datetime | None = None) -> pd.DataFrame:
+    """Journée simulée : soleil en cloche (6h-20h), température max vers 15h."""
+    p = SCENARIOS[kind]
+    start = start or _today()
+    mid, amp = (p["tmax"] + p["tmin"]) / 2, (p["tmax"] - p["tmin"]) / 2
     rows = []
     for i in range(24 * days):
         t = start + timedelta(hours=i)
         h = t.hour
         sun = max(0.0, math.sin(math.pi * (h - 6) / 14)) if 6 <= h <= 20 else 0.0
-        # température : min ~30 °C vers 3h, max 44 °C vers 15h
-        temp = 37 + 7 * math.sin(math.pi * (h - 9) / 12)
         rows.append({
             "hour": t.strftime("%Y-%m-%dT%H:%M"),
-            "tempC": round(temp, 1),
-            "irradianceWm2": round(950 * sun, 1),
-            "et0Mm": round(0.85 * sun, 3),          # ~7,5 mm/jour, typique canicule saharienne
-            "precipMm": 0.0,
+            "tempC": round(mid + amp * math.sin(math.pi * (h - 9) / 12), 1),
+            "irradianceWm2": round(p["irr"] * sun, 1),
+            "et0Mm": round(p["et0"] * sun, 3),
+            "precipMm": p["rain"] if 10 <= h < 14 else 0.0,
         })
     return pd.DataFrame(rows, columns=COLUMNS)
 
 
-def _load_scenario(days: int) -> pd.DataFrame:
-    """Lit le scénario canicule (le crée s'il n'existe pas) et le recale sur aujourd'hui."""
+def make_scenario_canicule(days: int = 2, start: datetime | None = None) -> pd.DataFrame:
+    """Raccourci gardé pour compatibilité."""
+    return make_scenario("canicule", days, start)
+
+
+def _load_scenario(kind: str, days: int) -> pd.DataFrame:
+    """Canicule : lue depuis cache/scenario_canicule.csv (créé si absent). Autres : générées."""
+    if kind != "canicule":
+        return make_scenario(kind, days)
     CACHE_DIR.mkdir(exist_ok=True)
-    if not SCENARIO_FILE.exists():
-        make_scenario_canicule(days=7).to_csv(SCENARIO_FILE, index=False)
-    df = pd.read_csv(SCENARIO_FILE)
+    try:
+        if not SCENARIO_FILE.exists():
+            make_scenario("canicule", days=7).to_csv(SCENARIO_FILE, index=False)
+        df = pd.read_csv(SCENARIO_FILE).head(24 * days).copy()
+        if len(df) < 24 * days or list(df.columns) != COLUMNS:
+            raise ValueError("fichier scénario incomplet")
+    except Exception:
+        return make_scenario("canicule", days)
     # recale les dates sur aujourd'hui pour que la démo soit toujours "à jour"
-    start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    df = df.head(24 * days).copy()
-    df["hour"] = [(start + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M") for i in range(len(df))]
+    df["hour"] = [(_today() + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M") for i in range(len(df))]
     return df
 
 
 def get_weather(lat: float, lon: float, days: int = 2, scenario: str | None = None) -> pd.DataFrame:
     """Point d'entrée unique utilisé par /forecast."""
-    if scenario == "canicule":
-        df = _load_scenario(days)
+    if scenario:
+        df = _load_scenario(scenario, days)
         df.attrs["source"] = "scenario"
         return df
 
@@ -99,21 +121,24 @@ def get_weather(lat: float, lon: float, days: int = 2, scenario: str | None = No
     except Exception as e:  # pas d'internet, timeout, réponse invalide...
         print(f"[weather] Open-Meteo indisponible ({type(e).__name__}) -> plan B")
 
-    if cache.exists():
-        df = pd.read_csv(cache).head(24 * days)
-        df.attrs["source"] = "cache"
-        return df
+    try:
+        if cache.exists():
+            df = pd.read_csv(cache).head(24 * days).fillna(0.0)
+            if list(df.columns) == COLUMNS and len(df) > 0:
+                df.attrs["source"] = "cache"
+                return df
+    except Exception as e:
+        print(f"[weather] cache illisible ({type(e).__name__}) -> scénario canicule")
 
-    df = _load_scenario(days)
+    df = _load_scenario("canicule", days)
     df.attrs["source"] = "scenario"
     return df
 
 
 if __name__ == "__main__":
     # Test rapide : python weather.py
-    for sc in (None, "canicule"):
+    for sc in (None, "normal", "canicule", "nuageux"):
         df = get_weather(33.92, 8.13, days=2, scenario=sc)
-        print(f"\n=== scenario={sc} | source={df.attrs['source']} | {len(df)} heures ===")
-        print(df.iloc[10:16].to_string(index=False))
-        print(f"Temp max : {df['tempC'].max()} °C | Irradiance max : {df['irradianceWm2'].max()} W/m2"
-              f" | ET0 jour 1 : {df['et0Mm'].head(24).sum():.1f} mm")
+        print(f"scenario={str(sc):9} | source={df.attrs['source']:8} | {len(df)} h | "
+              f"Tmax {df['tempC'].max()} °C | Irr max {df['irradianceWm2'].max()} W/m2 | "
+              f"ET0 j1 {df['et0Mm'].head(24).sum():.1f} mm")

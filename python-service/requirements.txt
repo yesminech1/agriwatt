@@ -1,6 +1,8 @@
 fastapi
-uvicorn
-pandas
+httpx
 numpy
+pandas
+pytest
 requests
 scikit-learn
+uvicorn

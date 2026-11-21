@@ -6,8 +6,9 @@ Le format des réponses respecte exactement le contrat d'interface (section 4).
 """
 from typing import List, Literal, Optional
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from anomaly import detect_anomalies
@@ -25,7 +26,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception):
+    """Toute erreur imprévue renvoie un JSON clair (500) au lieu de faire planter l'appel."""
+    print(f"[erreur] {request.url.path} : {type(exc).__name__} : {exc}")
+    return JSONResponse(status_code=500,
+                        content={"detail": f"Erreur interne du service Python : {type(exc).__name__}"})
 # ---------- Modèles (contrat) ----------
 class HourForecast(BaseModel):
     hour: str
@@ -77,8 +83,7 @@ def forecast(
     panelAreaM2: float = 24,
     panelEfficiency: float = 0.18,
     days: int = Query(2, ge=1, le=7),
-    scenario: Optional[Literal["canicule"]] = None,
-    forceOutageStart: Optional[int] = Query(None, ge=0, le=23),
+    scenario: Optional[Literal["normal", "canicule", "nuageux"]] = None,    forceOutageStart: Optional[int] = Query(None, ge=0, le=23),
     forceOutageEnd: Optional[int] = Query(None, ge=1, le=24),
 ):
     """Prévision horaire réelle : météo (Open-Meteo / cache / scénario) + solaire + eau + risque."""
