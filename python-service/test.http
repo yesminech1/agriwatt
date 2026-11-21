@@ -1,0 +1,23 @@
+### 1. Santé (attendu : 200, {"status":"ok"})
+GET http://localhost:8000/health
+
+### 2. Prévision scénario Tozeur (attendu : 200, 48 heures)
+GET http://localhost:8000/forecast?lat=33.92&lon=8.13&crop=olive&areaM2=20000&panelAreaM2=24&panelEfficiency=0.18&days=2
+
+### 3. Culture inconnue (attendu : 422)
+GET http://localhost:8000/forecast?lat=33.92&lon=8.13&crop=mais&areaM2=20000&panelAreaM2=24
+
+### 4. Anomalies démo (attendu : 200, 168 points dont 4 anomalies)
+GET http://localhost:8000/anomalies/demo?days=7
+
+### 5. Détection sur données fournies (attendu : 200, 6.9 et 1.1 en anomalie)
+POST http://localhost:8000/anomalies/detect
+Content-Type: application/json
+
+{"points":[
+  {"timestamp":"2026-07-10T08:00","powerKw":5.0},
+  {"timestamp":"2026-07-10T09:00","powerKw":5.1},
+  {"timestamp":"2026-07-10T10:00","powerKw":6.9},
+  {"timestamp":"2026-07-10T11:00","powerKw":1.1},
+  {"timestamp":"2026-07-10T12:00","powerKw":4.9}
+]}
