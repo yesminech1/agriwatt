@@ -1,0 +1,23 @@
+### 1. Santé (attendu : 200, {"status":"ok"})
+GET http://localhost:8000/health
+
+### 2. Prévision réelle à Tozeur (attendu : 200, 48 heures, "source":"openmeteo"; 503 si pas d'internet ni cache du jour)
+GET http://localhost:8000/forecast?lat=33.92&lon=8.13&crop=olive&areaM2=20000&panelAreaM2=24&panelEfficiency=0.18&days=2
+
+### 3. Prévision réelle à Sfax avec coupure prévue 14h-19h
+GET http://localhost:8000/forecast?lat=34.74&lon=10.76&crop=olive&areaM2=20000&panelAreaM2=24&forceOutageStart=14&forceOutageEnd=19
+
+### 4. Culture inconnue (attendu : 422)
+GET http://localhost:8000/forecast?lat=33.92&lon=8.13&crop=mais
+
+### 5. Détection d'anomalies sur des mesures fournies (attendu : 6.9 et 1.1 en anomalie)
+POST http://localhost:8000/anomalies/detect
+Content-Type: application/json
+
+{"points":[
+  {"timestamp":"2026-07-10T08:00","powerKw":5.0},
+  {"timestamp":"2026-07-10T09:00","powerKw":5.1},
+  {"timestamp":"2026-07-10T10:00","powerKw":6.9},
+  {"timestamp":"2026-07-10T11:00","powerKw":1.1},
+  {"timestamp":"2026-07-10T12:00","powerKw":4.9}
+]}
