@@ -1,0 +1,320 @@
+{
+  "version": "20261122-063116",
+  "trainedAt": "2026-11-22T06:31:16+00:00",
+  "arch": "mobilenet_v3_large",
+  "pretrained": true,
+  "testOnly": false,
+  "classes": [
+    "SANS_STRESS",
+    "STRESS_HYDRIQUE"
+  ],
+  "plants": [
+    {
+      "code": "olivier",
+      "label": "Olivier"
+    }
+  ],
+  "imageSize": 224,
+  "uncertainThreshold": 0.65,
+  "labelDefinition": {
+    "SANS_STRESS": "irrigation 100 % des besoins (groupes A1, A2)",
+    "STRESS_HYDRIQUE": "aucune irrigation, 0 % (groupes D1, D2)",
+    "exclus": "régimes 50 % et 25 %",
+    "startDate": "2024-05-01",
+    "views": [
+      "top",
+      "side"
+    ]
+  },
+  "dataset": {
+    "name": "Olive Tree Varieties Responses to Different level of Drought Stress",
+    "source": "Majikumna et al., Mendeley Data, DOI 10.17632/22j26tpk63.1 (CC BY 4.0)",
+    "excelRows": 1520,
+    "referencedImages": 1040,
+    "usedImages": 1040,
+    "missing": 0,
+    "invalid": [],
+    "duplicatesRemoved": [],
+    "split": {
+      "train": {
+        "images": 728,
+        "trees": 28,
+        "par_classe": {
+          "SANS_STRESS": 364,
+          "STRESS_HYDRIQUE": 364
+        },
+        "par_vue": {
+          "top": 364,
+          "side": 364
+        },
+        "arbres": [
+          "A1H1",
+          "A1H3",
+          "A1L1",
+          "A1L2",
+          "A1L3",
+          "A1L4",
+          "A1M1",
+          "A2H2",
+          "A2H3",
+          "A2L1",
+          "A2L3",
+          "A2M1",
+          "A2M2",
+          "A2M3",
+          "D1H1",
+          "D1H3",
+          "D1L1",
+          "D1L2",
+          "D1L3",
+          "D1L4",
+          "D1M2",
+          "D1M3",
+          "D2H2",
+          "D2H3",
+          "D2L1",
+          "D2L3",
+          "D2M1",
+          "D2M3"
+        ]
+      },
+      "val": {
+        "images": 156,
+        "trees": 6,
+        "par_classe": {
+          "SANS_STRESS": 78,
+          "STRESS_HYDRIQUE": 78
+        },
+        "par_vue": {
+          "top": 78,
+          "side": 78
+        },
+        "arbres": [
+          "A1H2",
+          "A1M3",
+          "A2L2",
+          "D1M1",
+          "D2H1",
+          "D2L2"
+        ]
+      },
+      "test": {
+        "images": 156,
+        "trees": 6,
+        "par_classe": {
+          "SANS_STRESS": 78,
+          "STRESS_HYDRIQUE": 78
+        },
+        "par_vue": {
+          "top": 78,
+          "side": 78
+        },
+        "arbres": [
+          "A1M2",
+          "A2H1",
+          "A2L4",
+          "D1H2",
+          "D2L4",
+          "D2M2"
+        ]
+      }
+    }
+  },
+  "training": {
+    "epochs": 10,
+    "bestEpoch": 5,
+    "bestPhase": "tête",
+    "history": [
+      {
+        "epoch": 1,
+        "phase": "tête",
+        "train_loss": 0.4887,
+        "val_loss": 0.6147,
+        "val_accuracy": 0.6731,
+        "val_f1": 0.5785
+      },
+      {
+        "epoch": 2,
+        "phase": "tête",
+        "train_loss": 0.3034,
+        "val_loss": 0.5704,
+        "val_accuracy": 0.7051,
+        "val_f1": 0.6849
+      },
+      {
+        "epoch": 3,
+        "phase": "tête",
+        "train_loss": 0.2742,
+        "val_loss": 0.7204,
+        "val_accuracy": 0.6538,
+        "val_f1": 0.5714
+      },
+      {
+        "epoch": 4,
+        "phase": "tête",
+        "train_loss": 0.2847,
+        "val_loss": 0.5968,
+        "val_accuracy": 0.6667,
+        "val_f1": 0.679
+      },
+      {
+        "epoch": 5,
+        "phase": "tête",
+        "train_loss": 0.3122,
+        "val_loss": 0.5531,
+        "val_accuracy": 0.7051,
+        "val_f1": 0.7051
+      },
+      {
+        "epoch": 6,
+        "phase": "tête",
+        "train_loss": 0.2133,
+        "val_loss": 0.6035,
+        "val_accuracy": 0.7436,
+        "val_f1": 0.7368
+      },
+      {
+        "epoch": 7,
+        "phase": "affinage",
+        "train_loss": 0.4205,
+        "val_loss": 0.8633,
+        "val_accuracy": 0.6923,
+        "val_f1": 0.75
+      },
+      {
+        "epoch": 8,
+        "phase": "affinage",
+        "train_loss": 0.2442,
+        "val_loss": 1.2918,
+        "val_accuracy": 0.641,
+        "val_f1": 0.7282
+      },
+      {
+        "epoch": 9,
+        "phase": "affinage",
+        "train_loss": 0.1604,
+        "val_loss": 1.2003,
+        "val_accuracy": 0.6731,
+        "val_f1": 0.7437
+      },
+      {
+        "epoch": 10,
+        "phase": "affinage",
+        "train_loss": 0.1198,
+        "val_loss": 0.9574,
+        "val_accuracy": 0.7244,
+        "val_f1": 0.7749
+      }
+    ],
+    "seed": 42,
+    "batchSize": 32,
+    "durationSeconds": 512
+  },
+  "metrics": {
+    "validation": {
+      "images": 156,
+      "accuracy": 0.7051,
+      "precision": 0.7051,
+      "recall": 0.7051,
+      "f1": 0.7051,
+      "confusion_matrix": {
+        "labels": [
+          "SANS_STRESS",
+          "STRESS_HYDRIQUE"
+        ],
+        "rows_true_cols_pred": [
+          [
+            55,
+            23
+          ],
+          [
+            23,
+            55
+          ]
+        ]
+      },
+      "uncertain_rate": 0.2436
+    },
+    "test": {
+      "images": 156,
+      "accuracy": 0.7308,
+      "precision": 0.725,
+      "recall": 0.7436,
+      "f1": 0.7342,
+      "confusion_matrix": {
+        "labels": [
+          "SANS_STRESS",
+          "STRESS_HYDRIQUE"
+        ],
+        "rows_true_cols_pred": [
+          [
+            56,
+            22
+          ],
+          [
+            20,
+            58
+          ]
+        ]
+      },
+      "uncertain_rate": 0.141
+    },
+    "testPerView": {
+      "top": {
+        "images": 78,
+        "accuracy": 0.7308,
+        "precision": 0.7368,
+        "recall": 0.7179,
+        "f1": 0.7273,
+        "confusion_matrix": {
+          "labels": [
+            "SANS_STRESS",
+            "STRESS_HYDRIQUE"
+          ],
+          "rows_true_cols_pred": [
+            [
+              29,
+              10
+            ],
+            [
+              11,
+              28
+            ]
+          ]
+        },
+        "uncertain_rate": 0.1026
+      },
+      "side": {
+        "images": 78,
+        "accuracy": 0.7308,
+        "precision": 0.7143,
+        "recall": 0.7692,
+        "f1": 0.7407,
+        "confusion_matrix": {
+          "labels": [
+            "SANS_STRESS",
+            "STRESS_HYDRIQUE"
+          ],
+          "rows_true_cols_pred": [
+            [
+              27,
+              12
+            ],
+            [
+              9,
+              30
+            ]
+          ]
+        },
+        "uncertain_rate": 0.1795
+      }
+    }
+  },
+  "limitations": [
+    "Modèle entraîné uniquement sur de jeunes oliviers (variétés Languedoc, Haouzia, Menara) photographiés pendant un essai au Maroc (mars-juillet 2024).",
+    "Les étiquettes viennent du régime d'irrigation appliqué (100 % vs 0 %), pas d'une mesure de l'état hydrique de chaque arbre.",
+    "Jeu de test : 6 arbres seulement ; les métriques ont donc une marge d'incertitude importante.",
+    "Le score de confiance est la sortie softmax du réseau : il n'est pas calibré et ne doit pas être lu comme une probabilité.",
+    "Le résultat repose sur des signes visuels ; il ne mesure pas l'humidité du sol ni le potentiel hydrique de la plante."
+  ]
+}

@@ -1,0 +1,13 @@
+fastapi
+httpx
+numpy
+pandas
+pytest
+requests
+scikit-learn
+uvicorn
+openpyxl
+pillow
+python-multipart
+torch
+torchvision

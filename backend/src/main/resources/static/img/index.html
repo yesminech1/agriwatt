@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgriWatt – Planificateur énergétique de l'irrigation</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f3d2e'/%3E%3Cpath d='M17 5 9 18h6l-1 9 9-14h-6z' fill='%23dff26b'/%3E%3C/svg%3E">
+
+  <!-- Polices (facultatif : repli sur les polices système hors ligne) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 : copie locale en priorité (démo hors ligne), CDN en secours -->
+  <link rel="stylesheet" href="lib/bootstrap/bootstrap.min.css"
+        onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css'">
+  <link rel="stylesheet" href="css/style.css?v=20261122-detect">
+</head>
+<body data-view="dashboard">
+<div class="app">
+
+  <!-- ============ BARRE LATÉRALE ============ -->
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html" aria-label="AgriWatt">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#dff26b"/><path d="M17.5 5 9 18h6l-1.2 9L23 13.5h-6.2z" fill="#0f3d2e"/></svg>
+      <span>AGRI<b>WATT</b></span>
+    </a>
+
+    <nav class="nav-list" aria-label="Navigation principale">
+      <a class="nav-item" data-page-link="dashboard" href="index.html"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zm0 7h6v-5H4zm10 0h6V11h-6zm0-16v5h6V4z"/></svg>Tableau de bord</a>
+      <a class="nav-item" data-page-link="energy" href="energy.html"><svg viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>Énergie</a>
+      <a class="nav-item" data-page-link="history" href="history.html"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8m0-5v5h5m4-2v6l4 2"/></svg>Historique</a>
+      <a class="nav-item" data-page-link="anomalies" href="anomalies.html"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20zM12 10v4M12 17.5v.01"/></svg>Anomalies</a>
+      <a class="nav-item" data-page-link="detection" href="detection.html"><svg viewBox="0 0 24 24"><path d="M5 19c0-8.5 5.5-14 15-15-.6 9.6-6.4 15-15 15zM5 19l8-8"/></svg>Détection des plantes</a>
+      <a class="nav-item" data-page-link="settings" href="settings.html"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/></svg>Paramètres</a>
+          <a class="nav-item" data-page-link="logout" href="login.html"><svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3m9-9h8v18h-8"/></svg>Déconnexion</a>
+    </nav>
+
+
+    <a class="nav-item logout" href="#" id="btnFullscreen"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Plein écran</a>
+  </aside>
+
+  <!-- ============ CONTENU ============ -->
+  <main class="content" id="top">
+
+    <!-- Barre de navigation supérieure -->
+    <header class="topbar">
+      <div class="topbar-title">
+        <div class="mobile-brand">
+          <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0f3d2e"/><path d="M17.5 5 9 18h6l-1.2 9L23 13.5h-6.2z" fill="#dff26b"/></svg>
+        </div>
+        <div>
+          <h1>AgriWatt <span class="muted">· Planificateur énergétique de l'irrigation</span></h1>
+          <div class="farm-chip" id="farmLabel">
+            <svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21zm0-8.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg>
+            Chargement de la ferme active…
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        
+        <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-expanded="false" aria-controls="mobileNav">☰ Menu</button>
+      </div>
+    </header>
+
+    <nav class="mobile-nav" id="mobileNav" aria-label="Navigation mobile" hidden></nav>
+
+    <div class="alert alert-warning d-none banner" id="errorBanner" role="alert"></div>
+
+    <!-- Mes fermes : fermes de l'utilisateur connecté (/api/farms) -->
+    <section class="card-x farms-card" id="sec-farms" data-route="settings" aria-labelledby="farmsTitle">
+      <div class="card-title">
+        <div>
+          <h3 id="farmsTitle">Mes fermes</h3>
+          <p class="card-sub" id="farmsSub">La ferme sélectionnée est utilisée par le tableau de bord, l'énergie, le planning, l'historique et les anomalies.</p>
+        </div>
+        <button class="btn btn-lime btn-sm fw-semibold" id="btnFarmAdd" type="button">+ Ajouter une ferme</button>
+      </div>
+      <p class="farm-empty" id="farmEmpty" hidden>Aucune ferme enregistrée pour le moment. Cliquez sur « + Ajouter une ferme » pour créer la première.</p>
+      <div class="farm-list" id="farmList" aria-live="polite"></div>
+    </section>
+    <div class="farm-toast" id="farmToast" role="status" aria-live="polite" hidden></div>
+    <section class="card-x no-farm-card" id="noFarm" data-route="dashboard energy planning" hidden>
+      <h3>Aucune ferme sélectionnée</h3>
+      <p>AgriWatt calcule le plan d'irrigation à partir des paramètres et de la position d'une de vos fermes, avec la météo réelle de cet endroit.</p>
+      <a class="btn btn-lime fw-semibold" href="settings.html">Gérer mes fermes dans Paramètres →</a>
+    </section>
+
+    <!-- Héros : synthèse automatique -->
+    <section class="hero card-x" id="hero" data-route="dashboard">
+      <svg class="hero-wave" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M600 0v260H180C260 200 330 190 380 130S470 20 600 0z" fill="rgba(223,242,107,.16)"/>
+        <path d="M600 40v220H300c70-40 120-60 170-110S540 60 600 40z" fill="rgba(223,242,107,.12)"/>
+      </svg>
+      <div class="hero-body">
+        <div class="eyebrow">Plan d'irrigation recommandé</div>
+        <h2>Pompez au soleil, stockez l'eau, <span>tenez pendant la coupure.</span></h2>
+        <p class="hero-sentence" id="heroSentence">Calcul du plan en cours…</p>
+        <p class="hero-weather" id="heroWeather"></p>
+        <div class="hero-actions">
+          <button class="btn btn-lime fw-semibold" type="button" id="btnHeroCompute">Recalculer le plan</button>
+          <a class="hero-link" href="#sec-tank">Voir le graphique du réservoir →</a>
+        </div>
+      </div>
+      <div class="hero-chips">
+        <div class="chip-box"><small>Pic de chaleur</small><b id="heroTemp">–</b></div>
+        <div class="chip-box"><small>Coupure prévue</small><b id="heroOutage">–</b></div>
+        <div class="chip-box"><small>Réservoir</small><b id="heroTank">–</b></div>
+      </div>
+    </section>
+
+    <!-- Cartes KPI -->
+    <section class="kpi-grid" aria-label="Indicateurs clés" data-route="dashboard">
+      <article class="card-x kpi" id="kpi1">
+        <div class="kpi-head"><span>Énergie solaire utilisée</span><i class="kpi-ico y">☀</i></div>
+        <div class="kpi-main">
+          <div class="ring" id="kpiSolarRing" style="--p:0"><span id="kpiSolar">–</span></div>
+          <div class="kpi-text"><b id="kpiSolarTxt">–</b><small>de l'énergie de pompage vient du soleil</small></div>
+        </div>
+      </article>
+      <article class="card-x kpi" id="kpi2">
+        <div class="kpi-head"><span>Économies financières</span><i class="kpi-ico g">TND</i></div>
+        <div class="kpi-big" id="kpiSavings">–</div>
+        <div class="kpi-sub" id="kpiSavingsSub">–</div>
+      </article>
+      <article class="card-x kpi" id="kpi3">
+        <div class="kpi-head"><span>Réseau évité en pointe</span><i class="kpi-ico b">⚡</i></div>
+        <div class="kpi-big" id="kpiPeak">–</div>
+        <div class="kpi-sub">kWh non tirés sur le réseau entre 17 h et 22 h</div>
+      </article>
+      <article class="card-x kpi" id="kpi4">
+        <div class="kpi-head"><span>Heures de coupure couvertes</span><i class="kpi-ico r">⏻</i></div>
+        <div class="kpi-big" id="kpiOutage">–</div>
+        <div class="kpi-sub" id="kpiOutageSub">–</div>
+      </article>
+    </section>
+
+    <!-- Paramètres + graphique principal -->
+    <section class="grid-main">
+      <aside class="card-x config" id="sec-config" data-route="settings">
+        <div class="card-title"><h3>Paramètres de la ferme</h3><span class="farm-mode" id="farmMode">Simulation libre</span></div>
+
+
+        <form id="cfgForm" class="cfg-grid" autocomplete="off" novalidate>
+          <label class="full farm-only">Nom de la ferme
+            <input class="form-control form-control-sm" id="fName" type="text" maxlength="120" placeholder="Ex. : Oliveraie de Tozeur">
+          </label>
+          <div class="full map-box" id="mapBox">
+            <div class="map-head">
+              <b>Localisation de votre exploitation</b>
+              <p>Cliquez sur la carte pour indiquer l'emplacement exact de votre ferme en Tunisie. Cette position sera utilisée pour personnaliser vos prévisions agricoles et énergétiques.</p>
+            </div>
+            <div class="map-search">
+              <input class="form-control form-control-sm" id="mapSearch" type="search" placeholder="Ville, délégation, région, lieu… (ex. : Tozeur, Sfax)" autocomplete="off" aria-label="Rechercher un lieu en Tunisie">
+              <button class="btn btn-dark btn-sm" id="btnMapSearch" type="button">Rechercher</button>
+              <div class="map-suggest" id="mapSuggest" role="listbox" hidden></div>
+            </div>
+            <div class="map-frame">
+              <div id="farmMap" class="farm-map" role="application" aria-label="Carte de la Tunisie : cliquez pour placer la ferme"></div>
+              <div class="map-tools">
+                <button class="btn btn-light btn-sm" id="btnMapLocate" type="button">📍 Ma position</button>
+                <button class="btn btn-light btn-sm" id="btnMapReset" type="button">↺ Réinitialiser la position</button>
+              </div>
+            </div>
+            <p class="map-msg" id="mapMsg" role="status" aria-live="polite" hidden></p>
+            <div class="map-info">
+              <div><small>Ville / région</small><b id="mapPlace">–</b></div>
+              <label>Latitude<input class="form-control form-control-sm" id="fLat" type="number" min="30" max="38.5" step="0.0001" value="33.92"></label>
+              <label>Longitude<input class="form-control form-control-sm" id="fLon" type="number" min="7" max="12" step="0.0001" value="8.13"></label>
+              <div><small>Statut</small><b id="mapStatus" class="map-status">Aucune position sélectionnée</b></div>
+            </div>
+            <div class="map-legend"><span><i class="lg-marker"></i>Marqueur : emplacement de l'exploitation</span><span><i class="lg-area"></i>Carte : territoire tunisien (contour approximatif)</span></div>
+          </div>
+          <label class="full">Culture
+            <select class="form-select form-select-sm" id="fCrop">
+              <option value="olive">Oliviers</option>
+              <option value="datte">Palmiers dattiers</option>
+              <option value="tomate">Tomates</option>
+              <option value="ble">Blé</option>
+            </select>
+          </label>
+          <label>Surface (ha)
+            <input class="form-control form-control-sm" id="fArea" type="number" min="0.1" step="0.1" value="2">
+          </label>
+          <label>Pompe (kW)
+            <input class="form-control form-control-sm" id="fPump" type="number" min="0.5" step="0.5" value="5">
+          </label>
+          <label>Débit pompe (m³/h)
+            <input class="form-control form-control-sm" id="fFlow" type="number" min="1" step="1" value="10">
+          </label>
+          <label>Panneaux (m²)
+            <input class="form-control form-control-sm" id="fPanel" type="number" min="0" step="1" value="24">
+          </label>
+          <label>Réservoir (m³)
+            <input class="form-control form-control-sm" id="fTank" type="number" min="1" step="1" value="30">
+          </label>
+          <label>Niveau initial (m³)
+            <input class="form-control form-control-sm" id="fTankInit" type="number" min="0" step="1" value="10">
+          </label>
+          <label>Rendement panneaux (0-1)
+            <input class="form-control form-control-sm" id="fEff" type="number" min="0.01" max="1" step="0.01" value="0.18">
+          </label>
+          <label>Jours de prévision
+            <input class="form-control form-control-sm" id="fDays" type="number" min="1" max="7" step="1" value="2">
+          </label>
+          <div class="full tariff-box">
+            <span class="tariff-title">Tarifs électriques (TND/kWh)</span>
+            <div class="tariff-grid">
+              <label>Creuses<input class="form-control form-control-sm" id="fTOff" type="number" min="0" step="0.01" value="0.20"></label>
+              <label>Normal<input class="form-control form-control-sm" id="fTNorm" type="number" min="0" step="0.01" value="0.30"></label>
+              <label>Pointe<input class="form-control form-control-sm" id="fTPeak" type="number" min="0" step="0.01" value="0.45"></label>
+            </div>
+          </div>
+
+          <div class="full outage-box">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="fOutageOn" checked>
+              <label class="form-check-label" for="fOutageOn">Coupure de courant prévue (horaires habituels)</label>
+            </div>
+            <div class="outage-hours" id="outageHours">
+              <label>Début (h)<input class="form-control form-control-sm" id="fOutStart" type="number" min="0" max="23" value="14"></label>
+              <label>Fin (h)<input class="form-control form-control-sm" id="fOutEnd" type="number" min="1" max="23" value="19"></label>
+            </div>
+          </div>
+        </form>
+
+        <div class="farm-actions" id="farmActions" hidden>
+          <button class="btn btn-dark btn-sm fw-semibold" id="btnFarmSave" type="button">Enregistrer la ferme</button>
+          <button class="btn btn-outline-dark btn-sm fw-semibold" id="btnFarmEdit" type="button">Modifier</button>
+          <button class="btn btn-link btn-sm" id="btnFarmCancel" type="button">Annuler</button>
+        </div>
+
+        <button class="btn btn-success btn-calc w-100" id="btnCompute" type="button">
+          <span class="spinner-border spinner-border-sm d-none" id="calcSpinner" aria-hidden="true"></span>
+          <span id="calcLabel">Calculer le plan de la ferme</span>
+        </button>
+        <p class="calc-hint" id="calcHint" hidden></p>
+
+      </aside>
+
+      <section class="card-x chart-card" id="sec-tank" data-route="energy">
+        <div class="card-title">
+          <div>
+            <h3>Niveau du réservoir : avec et sans AgriWatt</h3>
+            <p class="card-sub">L'eau stockée joue le rôle de batterie pendant la coupure (zone grisée).</p>
+          </div>
+          <div class="legend-inline">
+            <span><i class="sw green"></i>AgriWatt</span>
+            <span><i class="sw red"></i>Sans AgriWatt</span>
+            <span><i class="sw grey"></i>Coupure</span>
+          </div>
+        </div>
+        <div class="chips" id="tankChips"></div>
+        <div class="chart-box tall"><canvas id="chTank" aria-label="Niveau du réservoir dans le temps" role="img"></canvas></div>
+      </section>
+    </section>
+
+    <!-- Planning de pompage + solaire -->
+    <!-- Alertes SMS (TextBee) : numéro, activation, test, historique -->
+    <section class="card-x sms-card" id="sec-sms" data-route="settings">
+      <div class="card-title">
+        <div><h3>Alertes SMS de coupure</h3><p class="card-sub">AgriWatt vous envoie un SMS <b id="smsLead">2 h</b> avant une coupure d'électricité prévue pour l'une de vos fermes (horaires saisis ou risque élevé estimé).</p></div>
+        <span class="sms-gateway" id="smsGateway">Vérification de la passerelle SMS…</span>
+      </div>
+      <div class="sms-form">
+        <label>Numéro de téléphone<input class="form-control form-control-sm" id="smsPhone" type="tel" inputmode="tel" placeholder="+216 XX XXX XXX" autocomplete="tel"></label>
+        <div class="form-check form-switch sms-switch">
+          <input class="form-check-input" type="checkbox" role="switch" id="smsEnabled">
+          <label class="form-check-label" for="smsEnabled">Activer les alertes SMS</label>
+        </div>
+        <button class="btn btn-dark btn-sm fw-semibold" id="btnSmsSave" type="button">Enregistrer</button>
+        <button class="btn btn-outline-dark btn-sm fw-semibold" id="btnSmsTest" type="button">Envoyer un SMS de test</button>
+      </div>
+      <p class="sms-msg" id="smsMsg" role="status" aria-live="polite"></p>
+      <div class="table-wrap sms-history" id="smsHistoryWrap" hidden>
+        <table class="table table-sm align-middle plan-table"><thead><tr><th>Créée le</th><th>Type</th><th>Coupure</th><th>Envoi prévu</th><th>Statut</th><th>Livraison</th><th>Détail</th></tr></thead><tbody id="smsHistory"></tbody></table>
+      </div>
+      <p class="card-sub" id="smsEmpty">Aucune alerte pour le moment.</p>
+    </section>
+
+    <section class="grid-two" id="sec-plan" data-route="planning energy">
+      <article class="card-x chart-card">
+        <div class="card-title">
+          <div><h3>Planning de pompage</h3><p class="card-sub">Puissance de la pompe heure par heure, selon la source d'énergie.</p></div>
+          <div class="legend-inline">
+            <span><i class="sw yellow"></i>Solaire</span>
+            <span><i class="sw blue"></i>Réseau</span>
+            <span><i class="sw none"></i>Arrêt</span>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="chPump" aria-label="Planning de pompage" role="img"></canvas></div>
+      </article>
+      <article class="card-x chart-card">
+        <div class="card-title">
+          <div><h3>Production solaire vs puissance de pompage</h3><p class="card-sub">La pompe démarre quand le soleil produit assez.</p></div>
+          <div class="legend-inline">
+            <span><i class="sw yellow"></i>Solaire</span>
+            <span><i class="sw green"></i>Pompe AgriWatt</span>
+            <span><i class="sw red dash"></i>Pompe classique</span>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="chSolar" aria-label="Production solaire et puissance de pompage" role="img"></canvas></div>
+      </article>
+    </section>
+
+    <!-- Anomalies -->
+    <section class="card-x anom-tools" id="anomTools" data-route="anomalies">
+      <div class="card-title">
+        <div><h3>Mesures de la pompe</h3><p class="card-sub">Importez les mesures réelles de consommation de la pompe (fichier CSV) : l'IA détecte les anomalies (usure, fuite, marche à vide).</p></div>
+        <label class="farm-picker">Ferme<select class="form-select form-select-sm" id="anomFarm"></select></label>
+      </div>
+      <div class="anom-import">
+        <input class="form-control form-control-sm" id="anomFile" type="file" accept=".csv,text/csv">
+        <button class="btn btn-dark btn-sm fw-semibold" id="btnAnomImport" type="button">Importer et analyser</button>
+        <button class="btn btn-outline-danger btn-sm fw-semibold" id="btnAnomClear" type="button" hidden>Supprimer les mesures</button>
+      </div>
+      <p class="card-sub anom-format">Format : une ligne par mesure, <code>horodatage;puissance_kW</code> (ex. <code>2026-07-15 13:00;5.1</code>), séparateur <code>;</code> ou <code>,</code>, en-tête facultatif, 20 mesures minimum. Un nouvel import remplace le précédent.</p>
+      <p class="anom-msg" id="anomMsg" role="status" aria-live="polite"></p>
+      <p class="anom-info" id="anomInfo"></p>
+    </section>
+    <p class="farm-empty" id="anomEmpty" data-route="anomalies" hidden>Aucune mesure importée pour cette ferme : importez un fichier CSV de mesures de la pompe pour lancer l'analyse.</p>
+    <section class="grid-two anomalies" id="sec-anom" data-route="anomalies" hidden>
+      <article class="card-x chart-card">
+        <div class="card-title">
+          <div><h3>Consommation de la pompe</h3><p class="card-sub">Mesures importées · survolez un point rouge pour lire l'explication.</p></div>
+          <div class="legend-inline"><span><i class="sw green"></i>Normal</span><span><i class="sw red dot"></i>Anomalie</span></div>
+        </div>
+        <div class="chart-box"><canvas id="chAnom" aria-label="Consommation de la pompe et anomalies" role="img"></canvas></div>
+      </article>
+      <article class="card-x alerts-card">
+        <div class="card-title"><h3>Alertes intelligentes</h3><span class="count-badge" id="alertCount">0</span></div>
+        <div id="alertList" class="alert-list"></div>
+      </article>
+    </section>
+
+    <!-- Tableau -->
+    <section class="card-x table-card" data-route="planning">
+      <div class="card-title">
+        <div><h3>Planning détaillé</h3><p class="card-sub">Heure par heure, avec le plan AgriWatt.</p></div>
+        <div class="day-tabs" role="tablist">
+          <button class="day-tab active" data-day="all" type="button">48 h</button>
+          <button class="day-tab" data-day="0" type="button">Jour 1</button>
+          <button class="day-tab" data-day="1" type="button">Jour 2</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table table-sm align-middle plan-table">
+          <thead><tr><th>Heure</th><th>Pompe</th><th>Source</th><th class="num">Puissance</th><th class="num">Eau pompée</th><th>Niveau du réservoir</th></tr></thead>
+          <tbody id="planBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card-x table-card" id="sec-history" data-route="history">
+      <div class="card-title">
+        <div><h3>Historique des calculs</h3><p class="card-sub">Chaque calcul est enregistré automatiquement avec sa ferme. Consultez les résultats sans relancer l'optimisation.</p></div>
+      </div>
+      <div class="hist-tools" id="histTools">
+        <label class="farm-picker">Ferme<select class="form-select form-select-sm" id="histFarm"></select></label>
+        <label>Du<input class="form-control form-control-sm" id="histFrom" type="date"></label>
+        <label>Au<input class="form-control form-control-sm" id="histTo" type="date"></label>
+        <button class="btn btn-light btn-sm fw-semibold" id="histReset" type="button">Toutes les dates</button>
+      </div>
+      <p class="farm-empty" id="histEmpty" hidden></p>
+      <p id="histMsg" class="card-sub" role="status" aria-live="polite"></p>
+      <div class="table-wrap" id="histTableWrap" hidden>
+        <table class="table table-sm align-middle plan-table hist-table"><thead><tr>
+          <th>Date du calcul</th><th>Période prévue</th><th class="num">Solaire utilisé</th><th class="num">Eau livrée / besoin</th>
+          <th class="num">Énergie pompe</th><th class="num">Part solaire</th><th class="num">Économies</th><th class="num">Réservoir min / final</th><th></th>
+        </tr></thead><tbody id="histBody"></tbody></table>
+      </div>
+    </section>
+    <section class="card-x hist-detail" id="histDetail" data-route="history" hidden>
+      <div class="card-title">
+        <div><h3 id="histDetailTitle">Détail du calcul</h3><p class="card-sub" id="histDetailMeta"></p></div>
+        <button class="btn btn-light btn-sm fw-semibold" id="histClose" type="button">Fermer</button>
+      </div>
+      <div class="hist-kpis" id="histDetailKpis"></div>
+      <div class="grid-two hist-charts">
+        <div><h4 class="hist-sub">Niveau du réservoir : avec et sans AgriWatt</h4><div class="chart-box"><canvas id="chHistTank" role="img" aria-label="Niveau du réservoir"></canvas></div></div>
+        <div><h4 class="hist-sub">Pompage par source d'énergie</h4><div class="chart-box"><canvas id="chHistPump" role="img" aria-label="Planning de pompage"></canvas></div></div>
+      </div>
+      <h4 class="hist-sub">Planning heure par heure</h4>
+      <div class="table-wrap hist-plan"><table class="table table-sm align-middle plan-table"><thead><tr><th>Heure</th><th>Pompe</th><th>Source</th><th class="num">Puissance</th><th class="num">Eau pompée</th><th>Réservoir (m³)</th></tr></thead><tbody id="histPlanBody"></tbody></table></div>
+    </section>
+    <!-- ============ Détection des plantes : stress hydrique par IA (photo -> modèle MobileNetV3) ============ -->
+    <section class="card-x det-hero" id="sec-detect" data-route="detection">
+      <svg class="hero-wave" viewBox="0 0 600 260" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M600 0v260H180C260 200 330 190 380 130S470 20 600 0z" fill="rgba(223,242,107,.16)"/>
+      </svg>
+      <div class="det-hero-body">
+        <div class="eyebrow">Intelligence artificielle</div>
+        <h2>Détection du stress hydrique</h2>
+        <p class="det-hero-sub">Analysez l'état hydrique de vos plantes grâce à l'intelligence artificielle.</p>
+        <span class="det-model" id="detModelStatus">Vérification du modèle…</span>
+      </div>
+      <ol class="det-steps">
+        <li><b>1</b><span>Choisissez la plante et importez une photo nette de l'arbre entier, prise en plein jour.</span></li>
+        <li><b>2</b><span>Un réseau de neurones (MobileNetV3), entraîné sur des photos d'oliviers irrigués et non irrigués, examine les signes visuels.</span></li>
+        <li><b>3</b><span>Vous obtenez l'état détecté, le score de confiance du modèle et une recommandation prudente.</span></li>
+      </ol>
+    </section>
+
+    <section class="det-grid" data-route="detection">
+      <article class="card-x det-input">
+        <div class="card-title"><div><h3>Photo à analyser</h3><p class="card-sub">Formats acceptés : JPG, JPEG et PNG, 10 Mo maximum.</p></div></div>
+        <label class="det-field">Type de plante
+          <select class="form-select form-select-sm" id="detPlant"><option value="olivier">Olivier</option></select>
+        </label>
+        <p class="det-note">Seul l'olivier est reconnu : le modèle a été entraîné uniquement sur de jeunes oliviers (variétés Languedoc, Haouzia et Menara). Les autres espèces ne sont pas prises en charge.</p>
+        <div class="det-drop" id="detDrop" tabindex="0" role="button" aria-label="Importer une photo : cliquez ou déposez un fichier">
+          <input type="file" id="detFile" accept=".jpg,.jpeg,.png,image/jpeg,image/png" hidden>
+          <div class="det-drop-empty" id="detDropEmpty">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3M12 4v11M7.5 8.5 12 4l4.5 4.5"/></svg>
+            <b>Glissez-déposez une photo ici</b>
+            <span>ou <u>sélectionnez-la sur votre ordinateur</u></span>
+          </div>
+          <figure class="det-preview" id="detPreview" hidden>
+            <img id="detPreviewImg" alt="Aperçu de la photo sélectionnée">
+            <figcaption id="detPreviewName"></figcaption>
+          </figure>
+        </div>
+        <p class="det-msg" id="detFileMsg" role="alert" hidden></p>
+        <div class="det-actions">
+          <button class="btn btn-success btn-calc" id="btnDetAnalyze" type="button" disabled>
+            <span class="spinner-border spinner-border-sm d-none" id="detSpinner" aria-hidden="true"></span>
+            <span id="detAnalyzeLabel">Analyser ma plante</span>
+          </button>
+          <div class="det-secondary">
+            <button class="btn btn-light btn-sm fw-semibold" id="btnDetChange" type="button" hidden>Choisir une autre image</button>
+            <button class="btn btn-link btn-sm det-remove" id="btnDetRemove" type="button" hidden>Supprimer l'image</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="card-x det-result" id="detResult" aria-live="polite">
+        <div class="card-title"><h3>Résultat de l'analyse</h3></div>
+        <div class="det-state det-idle" id="detIdle">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8.5 5.5-14 15-15-.6 9.6-6.4 15-15 15zM5 19l8-8"/></svg>
+          <p id="detIdleText">Importez une photo d'olivier puis cliquez sur « Analyser ma plante ». Le résultat du modèle s'affichera ici.</p>
+        </div>
+        <div class="det-state det-loading" id="detLoading" hidden>
+          <div class="det-scan"><img id="detLoadingImg" alt=""><i></i></div>
+          <p><b>Analyse en cours…</b><br>Le modèle examine les signes visuels de la photo.</p>
+        </div>
+        <div class="det-state det-error" id="detError" hidden>
+          <b id="detErrorTitle">Analyse impossible</b>
+          <p id="detErrorText"></p>
+          <button class="btn btn-dark btn-sm fw-semibold" id="btnDetRetry" type="button">Réessayer</button>
+        </div>
+        <div class="det-state" id="detOutput" hidden></div>
+      </article>
+    </section>
+
+    <section class="card-x table-card" id="sec-detect-history" data-route="detection">
+      <div class="card-title"><div><h3>Historique de mes analyses</h3><p class="card-sub">Chaque analyse est enregistrée avec sa photo. Elle n'est visible que par vous.</p></div></div>
+      <p class="farm-empty" id="detHistEmpty" hidden>Aucune analyse pour le moment.</p>
+      <p class="card-sub" id="detHistMsg" role="status"></p>
+      <div class="table-wrap" id="detHistWrap" hidden>
+        <table class="table table-sm align-middle plan-table det-hist"><thead><tr><th>Date</th><th>Photo</th><th>Plante</th><th>Résultat</th><th class="num">Confiance</th><th></th></tr></thead><tbody id="detHistBody"></tbody></table>
+      </div>
+    </section>
+    <section class="card-x det-detail" id="detDetail" data-route="detection" hidden>
+      <div class="card-title">
+        <div><h3>Détail de l'analyse</h3><p class="card-sub" id="detDetailMeta"></p></div>
+        <div class="det-secondary">
+          <button class="btn btn-outline-danger btn-sm fw-semibold" id="btnDetDelete" type="button">Supprimer</button>
+          <button class="btn btn-light btn-sm fw-semibold" id="btnDetClose" type="button">Fermer</button>
+        </div>
+      </div>
+      <div id="detDetailBody"></div>
+    </section>
+
+    <footer class="foot">
+      AgriWatt · Hackathon Kizuna Japon × Tunisie · Toutes les données affichées sont <b>simulées</b> (météo, tarifs et coupures en hypothèse) et ne constituent pas des mesures réelles.
+    </footer>
+  </main>
+</div>
+
+<!-- Chart.js 4 : copie locale en priorité, CDN en secours -->
+<script src="lib/chartjs/chart.umd.min.js"></script>
+<script>window.Chart || document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"><\/script>')</script>
+<script src="js/app.js?v=20261122-detect"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
